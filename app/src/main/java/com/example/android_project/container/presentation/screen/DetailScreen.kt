@@ -1,0 +1,244 @@
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.navigation.NavController
+import coil3.compose.AsyncImage
+import com.example.android_project.data.PokemonCardRepository
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreen(
+    index: Int,
+    navController: NavController
+) {
+    val card = PokemonCardRepository.cards.getOrNull(index)
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Информация") }
+            )
+        },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 15.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                FloatingActionButton(onClick = { navController.popBackStack() }) {
+                    Icon(Icons.Default.Close, contentDescription = "Закрыть")
+                }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            AsyncImage(
+                model = card?.imageUrls ?: "Empty",
+                contentDescription = "Pokemon image",
+                modifier = Modifier.fillMaxSize()
+            )
+
+
+            ConstraintLayout(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(4.dp, Color.LightGray, shape = RoundedCornerShape(12.dp))
+            ) {
+                val (nameText, statsColumn, infoBox) = createRefs()
+
+
+                Text(
+                    text = card?.name ?: "Empty",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .constrainAs(nameText) {
+                            top.linkTo(parent.top)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+
+
+                        }
+                        .padding(20.dp)
+                )
+
+
+                Column(
+                    modifier = Modifier.constrainAs(statsColumn) {
+                        top.linkTo(nameText.bottom, margin = 16.dp)
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
+                    }
+                ) {
+                    StatRowWithText("Pokemon", card?.pokemon ?: "Empty")
+                    StatRowWithImage("Type", card?.type ?: "Empty")
+                    StatRowWithText("HP", card?.hp ?: "Empty")
+                    StatRowWithImage("Weakness", card?.weakness ?: "Empty")
+                    StatRowWithImage("Retreat", card?.retreat ?: "Empty")
+                    StatRowWithText("Series", card?.series ?: "Empty")
+
+
+                }
+
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .border(2.dp, Color(0x10000000), shape = RoundedCornerShape(12.dp))
+                        .constrainAs(infoBox) {
+                            top.linkTo(statsColumn.bottom, margin = 24.dp)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                        }
+                ) {
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 20.dp, end = 20.dp, top = 20.dp)
+
+                    ) {
+                        AsyncImage(
+                            model = card?.attackElement,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = card?.attackName ?: "Empty",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+
+                    Text(
+                        text = card?.attackDescription ?: "Empty",
+                        modifier = Modifier
+
+                            .padding(start = 25.dp, end = 20.dp, top = 60.dp),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = card?.attackDamage ?: "Empty",
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(start = 20.dp, end = 20.dp, top = 25.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatRowWithText(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp)
+            .height(40.dp)
+            .border(2.dp, Color(0x10000000), shape = RoundedCornerShape(12.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(0.3f)
+                .fillMaxHeight()
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(Color(0x15000000)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(text = label, modifier = Modifier.padding(start = 8.dp))
+        }
+        Box(
+            modifier = Modifier
+                .weight(0.7f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(text = value, modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+fun StatRowWithImage(statName: String, imageUrl: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp)
+            .height(40.dp)
+            .border(2.dp, Color(0x10000000), shape = RoundedCornerShape(12.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(0.3f)
+                .fillMaxHeight()
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(Color(0x15000000)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(text = statName, modifier = Modifier.padding(8.dp))
+        }
+        Box(
+            modifier = Modifier
+                .weight(0.7f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.CenterStart
+        ) {
+
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+
