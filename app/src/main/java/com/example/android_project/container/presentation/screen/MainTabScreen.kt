@@ -1,6 +1,5 @@
 package com.example.android_project.container.presentation.screen
 
-import DetailScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -65,15 +64,16 @@ fun NavigationGraph(
             Screen3()
         }
         composable(
-            route = "detail/{index}",
-            arguments = listOf(navArgument("index") { type = NavType.IntType })
+            route = "detail/{cardId}",
+            arguments = listOf(navArgument("cardId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val index = backStackEntry.arguments?.getInt("index") ?: return@composable
+            val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
             onVisibilityChanged(false)
             DetailScreen(
-                index = index,
-                navController = navController
-            )
+                cardId = cardId,
+                navController = navController,
+
+                )
         }
     }
 }

@@ -1,5 +1,8 @@
+package com.example.android_project.container.presentation.screen
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +26,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,18 +38,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.example.android_project.data.PokemonCardRepository
+import com.example.android_project.extractTypeWords
+import com.example.android_project.typeIconMap
+import com.example.android_project.viewmodel.PokemonViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
-    index: Int,
-    navController: NavController
+    cardId: String,
+    navController: NavController,
+    viewModel: PokemonViewModel = viewModel()
 ) {
-    val card = PokemonCardRepository.cards.getOrNull(index)
+    val card by viewModel.selectedCard.collectAsState()
+    val weakness = extractTypeWords(card?.weaknesses.orEmpty())
+    val retreat = extractTypeWords(card?.retreatCost.orEmpty())
+    val pokemonType = card?.types.orEmpty()
+
+    LaunchedEffect(cardId) {
+        viewModel.loadCardById(cardId)
+    }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -70,22 +87,18 @@ fun DetailScreen(
                 .fillMaxSize()
         ) {
             AsyncImage(
-                model = card?.imageUrls ?: "Empty",
+                model = card?.images?.large,
                 contentDescription = "Pokemon image",
                 modifier = Modifier.fillMaxSize()
             )
-
-
             ConstraintLayout(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(4.dp, Color.LightGray, shape = RoundedCornerShape(12.dp))
             ) {
                 val (nameText, statsColumn, infoBox) = createRefs()
-
-
                 Text(
-                    text = card?.name ?: "Empty",
+                    text = card?.name.orEmpty(),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
@@ -93,13 +106,9 @@ fun DetailScreen(
                             top.linkTo(parent.top)
                             start.linkTo(parent.start)
                             end.linkTo(parent.end)
-
-
                         }
                         .padding(20.dp)
                 )
-
-
                 Column(
                     modifier = Modifier.constrainAs(statsColumn) {
                         top.linkTo(nameText.bottom, margin = 16.dp)
@@ -107,17 +116,16 @@ fun DetailScreen(
                         end.linkTo(parent.end)
                     }
                 ) {
-                    StatRowWithText("Pokemon", card?.pokemon ?: "Empty")
-                    StatRowWithImage("Type", card?.type ?: "Empty")
-                    StatRowWithText("HP", card?.hp ?: "Empty")
-                    StatRowWithImage("Weakness", card?.weakness ?: "Empty")
-                    StatRowWithImage("Retreat", card?.retreat ?: "Empty")
-                    StatRowWithText("Series", card?.series ?: "Empty")
-
-
+                    StatRowWithText(
+                        "Pokemon",
+                        card?.subtypes.toString().removePrefix("[").removeSuffix("]")
+                    )
+                    StatRowWithImage("Type", pokemonType)
+                    StatRowWithText("HP", card?.hp.orEmpty())
+                    StatRowWithImage("Weakness", weakness)
+                    StatRowWithImage("Retreat", retreat)
+                    StatRowWithText("Series", card?.set?.series.orEmpty())
                 }
-
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -129,39 +137,38 @@ fun DetailScreen(
                             end.linkTo(parent.end)
                         }
                 ) {
-
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(start = 20.dp, end = 20.dp, top = 20.dp)
-
                     ) {
-                        AsyncImage(
-                            model = card?.attackElement,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                        card?.attacks?.getOrNull(0)?.cost.orEmpty().forEach { type ->
+                            typeIconMap[type]?.let { iconUrl ->
+                                AsyncImage(
+                                    model = iconUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = card?.attackName ?: "Empty",
+                            text = card?.attacks?.getOrNull(0)?.name.orEmpty(),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-
                     Text(
-                        text = card?.attackDescription ?: "Empty",
+                        text = card?.attacks?.getOrNull(0)?.text.orEmpty(),
                         modifier = Modifier
-
                             .padding(start = 25.dp, end = 20.dp, top = 60.dp),
                         fontSize = 14.sp
                     )
                     Text(
-                        text = card?.attackDamage ?: "Empty",
+                        text = card?.attacks?.getOrNull(0)?.damage.orEmpty(),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(start = 20.dp, end = 20.dp, top = 25.dp),
@@ -204,7 +211,7 @@ fun StatRowWithText(label: String, value: String) {
 }
 
 @Composable
-fun StatRowWithImage(statName: String, imageUrl: String) {
+fun StatRowWithImage(statName: String, types: List<String>) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -228,15 +235,24 @@ fun StatRowWithImage(statName: String, imageUrl: String) {
                 .fillMaxHeight(),
             contentAlignment = Alignment.CenterStart
         ) {
-
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                types.forEach { type ->
+                    typeIconMap[type]?.let { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "$type icon",
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
         }
     }
 }
