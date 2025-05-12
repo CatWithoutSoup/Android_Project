@@ -19,6 +19,7 @@ import com.example.android_project.BottomNavBar
 import com.example.android_project.model.BottomNavItem
 import com.example.android_project.viewmodel.FavoriteViewModel
 import com.example.android_project.viewmodel.MainViewModel
+import com.example.android_project.viewmodel.ProfileViewModel
 
 
 @Composable
@@ -47,6 +48,7 @@ fun NavigationGraph(
     modifier: Modifier = Modifier,
     onVisibilityChanged: (Boolean) -> Unit
 ) {
+    val profileViewModel: ProfileViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Home.route,
@@ -70,8 +72,20 @@ fun NavigationGraph(
         }
         composable(BottomNavItem.Profile.route) {
             onVisibilityChanged(true)
-            ProfileScreen()
+            ProfileScreen(
+                navController = navController,
+                viewModel = profileViewModel
+            )
         }
+
+        composable("editProfile") {
+            EditProfileScreen(
+                navController = navController,
+                viewModel = profileViewModel
+            )
+            onVisibilityChanged(true)
+        }
+
         composable(
             route = "detail/{cardId}",
             arguments = listOf(navArgument("cardId") { type = NavType.StringType })

@@ -65,7 +65,8 @@ dependencies {
     implementation (libs.converter.gson)
     implementation (libs.kotlinx.coroutines.android)
     implementation(libs.androidx.datastore.preferences)
-
+    implementation (libs.google.accompanist.permissions)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.core.ktx)
 }
