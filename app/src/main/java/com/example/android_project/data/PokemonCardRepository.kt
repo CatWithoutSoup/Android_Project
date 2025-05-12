@@ -12,6 +12,6 @@ object PokemonCardRepository {
     }
 
     suspend fun getCardsByName(name: String): List<PokemonCard> {
-        return api.getCardsByName("name:$name").data
+        return api.getCardsByName(name).data
     }
 }

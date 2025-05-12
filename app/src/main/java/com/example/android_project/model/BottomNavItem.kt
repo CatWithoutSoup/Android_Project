@@ -12,9 +12,10 @@ sealed class BottomNavItem(
 ) {
     object Home : BottomNavItem("MainTabScreen", "Домой", Icons.Default.Home)
     object List : BottomNavItem("ListScreen", "Список", Icons.AutoMirrored.Filled.List)
+    object Favorite : BottomNavItem("FavoriteScreen", "Любимое", Icons.Default.Favorite)
     object Profile : BottomNavItem("ProfileScreen", "Профиль", Icons.Default.Person)
 
     companion object {
-        val items = listOf(Home, List, Profile)
+        val items = listOf(Home, List, Favorite, Profile)
     }
 }

@@ -1,5 +1,6 @@
 package com.example.android_project.container.presentation.screen
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -19,31 +20,42 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.example.android_project.data.local.FavoriteDatabase
+import com.example.android_project.data.local.FavoritePokemonCard
 import com.example.android_project.extractTypeWords
 import com.example.android_project.typeIconMap
 import com.example.android_project.viewmodel.PokemonViewModel
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,20 +63,66 @@ import com.example.android_project.viewmodel.PokemonViewModel
 fun DetailScreen(
     cardId: String,
     navController: NavController,
-    viewModel: PokemonViewModel = viewModel()
+    viewModel: PokemonViewModel = viewModel( factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application))
 ) {
     val card by viewModel.selectedCard.collectAsState()
     val weakness = extractTypeWords(card?.weaknesses.orEmpty())
     val retreat = extractTypeWords(card?.retreatCost.orEmpty())
     val pokemonType = card?.types.orEmpty()
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val isFavorite = remember { mutableStateOf(false) }
+
+
     LaunchedEffect(cardId) {
         viewModel.loadCardById(cardId)
+        isFavorite.value = FavoriteDatabase.getDatabase(context)
+            .favoriteDao()
+            .isFavorite(cardId)
     }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Информация") }
+            TopAppBar(
+                title = { Text("Информация") },
+                actions = {
+                    IconButton(onClick = {
+                        card?.let {
+                            scope.launch {
+                                val dao = FavoriteDatabase.getDatabase(context).favoriteDao()
+
+                                val favoriteEntity = FavoritePokemonCard(
+                                    id = it.id,
+                                    name = it.name,
+                                    subtypes = it.subtypes.joinToString(","),
+                                    types = it.types.joinToString(","),
+                                    hp = it.hp,
+                                    weaknesses = it.weaknesses.mapNotNull { map -> map["type"] }.joinToString(","),
+                                    retreatCost = it.retreatCost.joinToString(","),
+                                    imageSmall = it.images.small,
+                                    imageLarge = it.images.large,
+                                    series = it.set.series,
+                                    attackName = it.attacks.getOrNull(0)?.name.orEmpty(),
+                                    attackCost = it.attacks.getOrNull(0)?.cost?.joinToString(",").orEmpty(),
+                                    attackDamage = it.attacks.getOrNull(0)?.damage.orEmpty(),
+                                    attackText = it.attacks.getOrNull(0)?.text.orEmpty()
+                                )
+                                if (isFavorite.value) {
+                                    dao.delete(favoriteEntity)
+                                } else {
+                                    dao.insert(favoriteEntity)
+                                }
+                                isFavorite.value = !isFavorite.value
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isFavorite.value) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = "Избранное"
+                        )
+                    }
+                }
             )
         },
         bottomBar = {
@@ -116,10 +174,7 @@ fun DetailScreen(
                         end.linkTo(parent.end)
                     }
                 ) {
-                    StatRowWithText(
-                        "Pokemon",
-                        card?.subtypes.toString().removePrefix("[").removeSuffix("]")
-                    )
+                    StatRowWithText("Pokemon", card?.subtypes.toString().removePrefix("[").removeSuffix("]"))
                     StatRowWithImage("Type", pokemonType)
                     StatRowWithText("HP", card?.hp.orEmpty())
                     StatRowWithImage("Weakness", weakness)

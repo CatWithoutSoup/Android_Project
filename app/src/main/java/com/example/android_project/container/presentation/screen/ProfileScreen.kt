@@ -4,6 +4,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
 @Composable
-fun Screen3() {
-    Text(text = "Экран №3")
+fun ProfileScreen() {
+    Text(text = "Экран №4")
 }

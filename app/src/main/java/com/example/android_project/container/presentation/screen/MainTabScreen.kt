@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.android_project.BottomNavBar
 import com.example.android_project.model.BottomNavItem
+import com.example.android_project.viewmodel.FavoriteViewModel
 import com.example.android_project.viewmodel.MainViewModel
 
 
@@ -59,9 +60,17 @@ fun NavigationGraph(
             onVisibilityChanged(true)
             ListScreen(navController)
         }
+        composable(BottomNavItem.Favorite.route) {
+            onVisibilityChanged(true)
+            val favoriteViewModel: FavoriteViewModel = viewModel()
+            FavoriteScreen(
+                navController = navController,
+                viewModel = favoriteViewModel
+            )
+        }
         composable(BottomNavItem.Profile.route) {
             onVisibilityChanged(true)
-            Screen3()
+            ProfileScreen()
         }
         composable(
             route = "detail/{cardId}",
