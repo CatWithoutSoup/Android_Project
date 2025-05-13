@@ -1,13 +1,21 @@
 package com.example.android_project.container.presentation.screen
 
+import android.Manifest
 import android.app.Activity
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +27,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,9 +56,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.example.android_project.ReminderReceiver
 import com.example.android_project.viewmodel.ProfileViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +78,14 @@ fun EditProfileScreen(
     val email by viewModel.email.collectAsState()
     val deckurl by viewModel.deckUrl.collectAsState()
     val profileImageUrl by viewModel.profileImageUrl.collectAsState()
-
+    val favoriteTime by viewModel.favoriteTime.collectAsState()
+    val favoriteTimeError by viewModel.favoriteTimeError.collectAsState()
+    val showTimePicker = remember { mutableStateOf(false) }
+    val canSave = favoriteTimeError == null
     val imageUri = remember { mutableStateOf<Uri?>(null) }
     val cameraImageUri = remember { mutableStateOf<Uri?>(null) }
+
+
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -88,11 +107,11 @@ fun EditProfileScreen(
     }
 
     val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        android.Manifest.permission.READ_MEDIA_IMAGES
+        Manifest.permission.READ_MEDIA_IMAGES
     else
-        android.Manifest.permission.READ_EXTERNAL_STORAGE
+        Manifest.permission.READ_EXTERNAL_STORAGE
 
-    val cameraPermission = android.Manifest.permission.CAMERA
+    val cameraPermission = Manifest.permission.CAMERA
 
     var hasStoragePermission by remember {
         mutableStateOf(
@@ -143,6 +162,54 @@ fun EditProfileScreen(
                 navController.popBackStack()
             }
         }
+    }
+
+
+    if (showTimePicker.value) {
+        val timeParts = favoriteTime.split(":")
+        val hour = timeParts.getOrNull(0)?.toIntOrNull() ?: 12
+        val minute = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
+
+        TimePickerDialog(
+            context,
+            { _, selectedHour: Int, selectedMinute: Int ->
+                val time = "%02d:%02d".format(selectedHour, selectedMinute)
+                viewModel.onFavoriteTimeChanged(time)
+                showTimePicker.value = false
+            },
+            hour, minute, true
+        ).show()
+    }
+
+    @RequiresPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
+    fun scheduleReminder(context: Context, calendar: Calendar, name: String) {
+        Log.d("Reminder", "Alarm set for: ${calendar.time}")
+        Log.d("Reminder", "Scheduling reminder for $name")
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra("name", name)
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Toast.makeText(context, "Нет разрешения на точные уведомления", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
+
+        alarmManager.setExact(
+            AlarmManager.RTC_WAKEUP,
+            calendar.timeInMillis,
+            pendingIntent
+        )
     }
 
     when {
@@ -234,7 +301,23 @@ fun EditProfileScreen(
                         TextButton(onClick = {
                             viewModel.saveProfileData(fullName, position, email)
                             navController.popBackStack()
-                        }) {
+                            val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+                            val date = formatter.parse(favoriteTime)
+                            val calendar = Calendar.getInstance().apply {
+                                time = date!!
+                                set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR))
+                                set(Calendar.MONTH, Calendar.getInstance().get(Calendar.MONTH))
+                                set(Calendar.DAY_OF_MONTH, Calendar.getInstance().get(Calendar.DAY_OF_MONTH))
+                                if (before(Calendar.getInstance())) {
+                                    add(Calendar.DAY_OF_MONTH, 1)
+                                }
+                            }
+                            scheduleReminder(
+                                context = context,
+                                calendar = calendar,
+                                name = fullName)
+                        },
+                            enabled = canSave) {
                             Text("Сохранить")
                         }
                     }
@@ -287,6 +370,18 @@ fun EditProfileScreen(
                     label = { Text("Ссылка на колоду") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = favoriteTime,
+                    onValueChange = { viewModel.onFavoriteTimeChanged(it) },
+                    label = { Text("Время любимой пары") },
+                    trailingIcon = {
+                        IconButton(onClick = { showTimePicker.value = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Выбрать время")
+                        }
+                    },
+                    isError = favoriteTimeError != null,
+                    supportingText = favoriteTimeError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
+                )
             }
         }
 
@@ -327,6 +422,7 @@ fun EditProfileScreen(
             }
         )
     }
-    }
+
+}
 
 

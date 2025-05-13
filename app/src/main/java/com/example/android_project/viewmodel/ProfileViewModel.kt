@@ -29,6 +29,12 @@ class ProfileViewModel (application: Application) : AndroidViewModel(application
     val deckUrl: StateFlow<String> = _deckUrl
     fun onDeckUrlChanged(value: String) { _deckUrl.value = value }
 
+    private val _favoriteTime = MutableStateFlow("")
+    val favoriteTime: StateFlow<String> = _favoriteTime
+
+    private val _favoriteTimeError = MutableStateFlow<String?>(null)
+    val favoriteTimeError: StateFlow<String?> = _favoriteTimeError
+
     fun onProfileImageChanged(newImageUrl: String) {
         _profileImageUrl.value = newImageUrl
     }
@@ -43,5 +49,15 @@ class ProfileViewModel (application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repository.saveUserProfile(fullName, position, email, avatarUri, deckUrl)
         }
+    }
+
+    fun onFavoriteTimeChanged(newTime: String) {
+        _favoriteTime.value = newTime
+        validateFavoriteTime(newTime)
+    }
+
+    private fun validateFavoriteTime(time: String) {
+        _favoriteTimeError.value = if (time.matches(Regex("^([01]?\\d|2[0-3]):[0-5]\\d$"))) null
+        else "Введите корректное время в формате HH:mm"
     }
 }
